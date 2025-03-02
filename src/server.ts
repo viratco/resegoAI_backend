@@ -572,37 +572,48 @@ async function getResearchTags(query: string): Promise<string[]> {
 
 router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: Response): Promise<void> => {
   try {
-    // 1. Verify user authentication
-    const user = (req as any).user;
-    if (!user) {
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
+    // 1. Log environment check
+    console.log('Environment check:', {
+      hasApiKey: !!process.env.OPENROUTER_API_KEY,
+      keyPrefix: process.env.OPENROUTER_API_KEY?.substring(0, 6),
+      keyLength: process.env.OPENROUTER_API_KEY?.length
+    });
+
+    // 2. Get API key with explicit error
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenRouter API key not found in environment');
+    }
+    if (!apiKey.startsWith('sk-or-')) {
+      throw new Error('Invalid OpenRouter API key format');
     }
 
-    // 2. Get and verify OpenRouter API key
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    if (!apiKey || !apiKey.startsWith('sk-or-')) {
-      console.error('Invalid OpenRouter API key:', { exists: !!apiKey, prefix: apiKey?.slice(0, 5) });
-      res.status(500).json({ error: 'API key configuration error' });
-      return;
-    }
-
-    // 3. Get abstract from request
     const { abstract } = req.body;
     if (!abstract) {
       res.status(400).json({ error: 'Abstract is required' });
       return;
     }
 
-    // 4. Make OpenRouter API request
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
+    // 3. Create headers with explicit API key
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+      'Content-Type': 'application/json',
+      'X-Title': 'Resego AI'
+    };
+
+    // 4. Log request details (safely)
+    console.log('Making OpenRouter request:', {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-        'Content-Type': 'application/json',
-        'X-Title': 'Resego AI'
+        ...headers,
+        'Authorization': `Bearer ${apiKey.substring(0, 10)}...`
       },
+      abstractLength: abstract.length
+    });
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers,
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
@@ -614,35 +625,36 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       })
     });
 
-    // 5. Log OpenRouter response for debugging
-    console.log('OpenRouter Response:', {
-      status: openRouterResponse.status,
-      headers: Object.fromEntries(openRouterResponse.headers.entries())
+    const data = await response.json();
+    
+    // 5. Log response details
+    console.log('OpenRouter response:', {
+      status: response.status,
+      hasError: !!data.error,
+      hasChoices: !!data.choices,
+      responseType: typeof data
     });
 
-    const openRouterData = await openRouterResponse.json();
-    console.log('OpenRouter Data:', openRouterData);
-
-    // 6. Handle OpenRouter errors
-    if (!openRouterResponse.ok) {
-      console.error('OpenRouter Error:', openRouterData);
-      throw new Error(openRouterData.error?.message || 'OpenRouter API error');
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || `OpenRouter API error: ${response.statusText}`);
     }
 
-    // 7. Verify response format
-    if (!openRouterData.choices?.[0]?.message?.content) {
-      console.error('Invalid OpenRouter response format:', openRouterData);
-      throw new Error('Invalid response from AI service');
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('No content in AI response');
     }
 
-    // 8. Send successful response
     res.json({
-      summary: openRouterData.choices[0].message.content,
+      summary: data.choices[0].message.content,
       status: 'success'
     });
 
   } catch (error) {
-    console.error('Error in analyze-paper:', error);
+    console.error('Error in analyze-paper:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      time: new Date().toISOString()
+    });
+
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to analyze paper',
       timestamp: new Date().toISOString()
