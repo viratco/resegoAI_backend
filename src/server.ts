@@ -102,7 +102,7 @@ const searchPapers = async (req: Request, res: Response): Promise<void> => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'mistralai/mistral-7b-instruct',
+            model: 'moonshotai/moonlight-16b-a3b-instruct:free',
             messages: [{
               role: 'user',
               content: `Provide a very brief 2-3 bullet point summary of this research paper (max 50 words total):
@@ -135,7 +135,7 @@ const searchPapers = async (req: Request, res: Response): Promise<void> => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
+        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
         messages: [{
           role: 'user',
           content: `Synthesize a cohesive overview of these research papers (max 100 words). Focus on common themes, key findings, and broader implications. Don't list papers individually.
@@ -241,7 +241,7 @@ router.post('/api/generate-report', authenticateToken, (async (req: Request, res
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct',
+          model: 'moonshotai/moonlight-16b-a3b-instruct:free',
           messages: [{
             role: 'user',
             content: `Analyze this research paper and provide the following details in a structured format:
@@ -383,7 +383,7 @@ ${paperAnalyses.map(({ paper, analysis }) =>
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct',
+          model: 'moonshotai/moonlight-16b-a3b-instruct:free',
           messages: [{
             role: 'user',
             content: reportPrompt
@@ -470,7 +470,7 @@ router.post('/api/suggest-prompt', authenticateUser, (async (req: Request, res: 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
+        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
         messages: [{
           role: 'user',
           content: `As a research assistant, analyze this query and suggest improvements:
@@ -545,7 +545,7 @@ async function getResearchTags(query: string): Promise<string[]> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
+        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
         messages: [{
           role: 'user',
           content: `Generate 3-4 relevant research type tags for this query: "${query}"
@@ -581,7 +581,7 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
+        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
         messages: [{
           role: 'user',
           content: `Give 3 one-line bullet points (max 10 words each):
