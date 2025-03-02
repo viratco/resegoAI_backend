@@ -8,10 +8,19 @@ interface GenerateReportBody {
 
 type GenerateReportHandler = RequestHandler<{}, any, GenerateReportBody>;
 
-const generateReportHandler: GenerateReportHandler = async (req, res) => {
+const generateReportHandler: RequestHandler = async (req, res) => {
   try {
     const { query } = req.body;
     
+    if (!query) {
+      res.status(400).json({ error: 'Query is required' });
+      return;
+    }
+
+    // Add logging to debug
+    console.log('Generating report for query:', query);
+    console.log('User:', (req as any).user);
+
     // TODO: Implement actual report generation
     const mockReport = {
       report: `# Research Report: ${query}\n\nThis is a sample report.`,
@@ -28,8 +37,14 @@ const generateReportHandler: GenerateReportHandler = async (req, res) => {
     };
 
     res.json(mockReport);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return;
+  } catch (error) {
+    console.error('Error generating report:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to generate report',
+      details: error
+    });
+    return;
   }
 };
 

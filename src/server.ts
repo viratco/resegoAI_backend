@@ -23,7 +23,7 @@ const supabase = createClient(
 
 // Configure CORS with middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: ['https://resego-ai-frontend-3.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
