@@ -579,50 +579,54 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       return;
     }
 
-    const openRouterHeaders: HeadersInit = {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-      'Content-Type': 'application/json',
-      'X-Title': 'Resego AI'
-    };
+    // Simplified prompt
+    const prompt = `Summarize this abstract in 3 bullet points:
+    ${abstract.substring(0, 1000)}`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: openRouterHeaders,
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+        'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
+      },
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
-          content: `Analyze this research paper abstract and provide three key points:
-          ${abstract.substring(0, 1500)}`
+          content: prompt
         }],
-        temperature: 0.3,
-        max_tokens: 150
-      }),
+        temperature: 0.1,  // Reduced for more consistent output
+        max_tokens: 100,   // Reduced for faster response
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      })
     });
-
-    console.log('OpenRouter API Status:', response.status);
-    console.log('OpenRouter API Headers:', response.headers);
 
     const data = await response.json();
-    console.log('OpenRouter API Response:', data);
 
-    if (!response.ok) {
-      console.error('OpenRouter API Error:', data);
-      throw new Error(`OpenRouter API error: ${data.error || response.statusText}`);
+    // If OpenRouter returns an error
+    if (data.error) {
+      console.error('OpenRouter error:', data.error);
+      res.status(500).json({ error: data.error.message || 'OpenRouter API error' });
+      return;
     }
 
-    if (!data.choices?.[0]?.message?.content) {
-      console.error('Invalid response format:', data);
-      throw new Error('No content in AI response');
+    // If we get a valid response
+    if (data.choices?.[0]?.message?.content) {
+      res.json({ 
+        summary: data.choices[0].message.content,
+        status: 'success'
+      });
+      return;
     }
 
-    res.json({ 
-      summary: data.choices[0].message.content,
-      status: 'success'
-    });
+    throw new Error('Invalid response format from OpenRouter');
+
   } catch (error) {
-    console.error('Error analyzing paper:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Failed to analyze paper' });
   }
 }) as RequestHandler);
