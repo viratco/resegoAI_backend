@@ -574,27 +574,32 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
   try {
     const { abstract } = req.body;
     
-    if (!abstract) {
-      res.status(400).json({ error: 'Abstract is required' });
+    // First, verify API key
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    console.log('API Key exists:', !!apiKey);
+    console.log('API Key prefix:', apiKey?.substring(0, 6));
+    
+    if (!apiKey || !apiKey.startsWith('sk-or-')) {
+      console.error('Invalid OpenRouter API key format');
+      res.status(500).json({ error: 'Invalid API key configuration' });
       return;
     }
 
-    // Check if API key exists
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error('OpenRouter API key not found');
-      res.status(500).json({ error: 'API configuration error' });
-      return;
-    }
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+      'Content-Type': 'application/json',
+      'X-Title': 'Resego AI'
+    };
+
+    console.log('Request headers:', {
+      ...headers,
+      'Authorization': 'Bearer ' + apiKey.substring(0, 10) + '...'
+    });
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-        'Content-Type': 'application/json',
-        'X-Title': 'Resego AI',
-        'OpenAI-Organization': process.env.OPENROUTER_ORG_ID || '' // Optional
-      },
+      headers,
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
@@ -607,18 +612,17 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
     });
 
     const data = await response.json();
-    console.log('OpenRouter response:', data); // Add this log
+    console.log('OpenRouter response:', {
+      status: response.status,
+      data
+    });
 
     if (!response.ok || data.error) {
       throw new Error(data.error?.message || 'OpenRouter API error');
     }
 
-    if (!data.choices?.[0]?.message?.content) {
-      throw new Error('No content in response');
-    }
-
     res.json({ 
-      summary: data.choices[0].message.content,
+      summary: data.choices?.[0]?.message?.content || 'No summary generated',
       status: 'success'
     });
 
