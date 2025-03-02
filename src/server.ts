@@ -579,14 +579,16 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       return;
     }
 
+    const openRouterHeaders: HeadersInit = {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+      'Content-Type': 'application/json',
+      'X-Title': 'Resego AI'
+    };
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-        'Content-Type': 'application/json',
-        'X-Title': 'Resego AI'
-      },
+      headers: openRouterHeaders,
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
@@ -599,12 +601,26 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       }),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to generate AI summary');
-    }
+    console.log('OpenRouter API Status:', response.status);
+    console.log('OpenRouter API Headers:', response.headers);
 
     const data = await response.json();
-    res.json({ summary: data.choices[0]?.message?.content || 'Failed to generate summary' });
+    console.log('OpenRouter API Response:', data);
+
+    if (!response.ok) {
+      console.error('OpenRouter API Error:', data);
+      throw new Error(`OpenRouter API error: ${data.error || response.statusText}`);
+    }
+
+    if (!data.choices?.[0]?.message?.content) {
+      console.error('Invalid response format:', data);
+      throw new Error('No content in AI response');
+    }
+
+    res.json({ 
+      summary: data.choices[0].message.content,
+      status: 'success'
+    });
   } catch (error) {
     console.error('Error analyzing paper:', error);
     res.status(500).json({ error: 'Failed to analyze paper' });
