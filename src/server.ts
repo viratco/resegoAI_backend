@@ -579,9 +579,12 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       return;
     }
 
-    // Simplified prompt
-    const prompt = `Summarize this abstract in 3 bullet points:
-    ${abstract.substring(0, 1000)}`;
+    // Check if API key exists
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error('OpenRouter API key not found');
+      res.status(500).json({ error: 'API configuration error' });
+      return;
+    }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -589,45 +592,41 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
         'Content-Type': 'application/json',
-        'X-Title': 'Resego AI'
+        'X-Title': 'Resego AI',
+        'OpenAI-Organization': process.env.OPENROUTER_ORG_ID || '' // Optional
       },
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
-          content: prompt
+          content: `Summarize this abstract in 3 bullet points:\n${abstract.substring(0, 1000)}`
         }],
-        temperature: 0.1,  // Reduced for more consistent output
-        max_tokens: 100,   // Reduced for faster response
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0
+        temperature: 0.1,
+        max_tokens: 100
       })
     });
 
     const data = await response.json();
+    console.log('OpenRouter response:', data); // Add this log
 
-    // If OpenRouter returns an error
-    if (data.error) {
-      console.error('OpenRouter error:', data.error);
-      res.status(500).json({ error: data.error.message || 'OpenRouter API error' });
-      return;
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || 'OpenRouter API error');
     }
 
-    // If we get a valid response
-    if (data.choices?.[0]?.message?.content) {
-      res.json({ 
-        summary: data.choices[0].message.content,
-        status: 'success'
-      });
-      return;
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('No content in response');
     }
 
-    throw new Error('Invalid response format from OpenRouter');
+    res.json({ 
+      summary: data.choices[0].message.content,
+      status: 'success'
+    });
 
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to analyze paper' });
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to analyze paper'
+    });
   }
 }) as RequestHandler);
 
