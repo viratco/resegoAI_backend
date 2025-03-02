@@ -572,64 +572,80 @@ async function getResearchTags(query: string): Promise<string[]> {
 
 router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: Response): Promise<void> => {
   try {
-    const { abstract } = req.body;
-    
-    // First, verify API key
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    console.log('API Key exists:', !!apiKey);
-    console.log('API Key prefix:', apiKey?.substring(0, 6));
-    
-    if (!apiKey || !apiKey.startsWith('sk-or-')) {
-      console.error('Invalid OpenRouter API key format');
-      res.status(500).json({ error: 'Invalid API key configuration' });
+    // 1. Verify user authentication
+    const user = (req as any).user;
+    if (!user) {
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
 
-    const headers = {
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-      'Content-Type': 'application/json',
-      'X-Title': 'Resego AI'
-    };
+    // 2. Get and verify OpenRouter API key
+    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+    if (!apiKey || !apiKey.startsWith('sk-or-')) {
+      console.error('Invalid OpenRouter API key:', { exists: !!apiKey, prefix: apiKey?.slice(0, 5) });
+      res.status(500).json({ error: 'API key configuration error' });
+      return;
+    }
 
-    console.log('Request headers:', {
-      ...headers,
-      'Authorization': 'Bearer ' + apiKey.substring(0, 10) + '...'
-    });
+    // 3. Get abstract from request
+    const { abstract } = req.body;
+    if (!abstract) {
+      res.status(400).json({ error: 'Abstract is required' });
+      return;
+    }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    // 4. Make OpenRouter API request
+    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+        'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
+      },
       body: JSON.stringify({
         model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
-          content: `Summarize this abstract in 3 bullet points:\n${abstract.substring(0, 1000)}`
+          content: `Summarize this abstract in 3 key points:\n${abstract.substring(0, 1000)}`
         }],
         temperature: 0.1,
-        max_tokens: 100
+        max_tokens: 150
       })
     });
 
-    const data = await response.json();
-    console.log('OpenRouter response:', {
-      status: response.status,
-      data
+    // 5. Log OpenRouter response for debugging
+    console.log('OpenRouter Response:', {
+      status: openRouterResponse.status,
+      headers: Object.fromEntries(openRouterResponse.headers.entries())
     });
 
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || 'OpenRouter API error');
+    const openRouterData = await openRouterResponse.json();
+    console.log('OpenRouter Data:', openRouterData);
+
+    // 6. Handle OpenRouter errors
+    if (!openRouterResponse.ok) {
+      console.error('OpenRouter Error:', openRouterData);
+      throw new Error(openRouterData.error?.message || 'OpenRouter API error');
     }
 
-    res.json({ 
-      summary: data.choices?.[0]?.message?.content || 'No summary generated',
+    // 7. Verify response format
+    if (!openRouterData.choices?.[0]?.message?.content) {
+      console.error('Invalid OpenRouter response format:', openRouterData);
+      throw new Error('Invalid response from AI service');
+    }
+
+    // 8. Send successful response
+    res.json({
+      summary: openRouterData.choices[0].message.content,
       status: 'success'
     });
 
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to analyze paper'
+    console.error('Error in analyze-paper:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to analyze paper',
+      timestamp: new Date().toISOString()
     });
   }
 }) as RequestHandler);
