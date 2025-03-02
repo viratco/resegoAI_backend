@@ -98,11 +98,12 @@ const searchPapers = async (req: Request, res: Response): Promise<void> => {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': 'http://localhost:5173',
+            'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
             'Content-Type': 'application/json',
+            'X-Title': 'Resego AI'
           },
           body: JSON.stringify({
-            model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+            model: 'qwen/qwen-vl-plus:free',
             messages: [{
               role: 'user',
               content: `Provide a very brief 2-3 bullet point summary of this research paper (max 50 words total):
@@ -131,11 +132,12 @@ const searchPapers = async (req: Request, res: Response): Promise<void> => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'http://localhost:5173',
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
         'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
       },
       body: JSON.stringify({
-        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+        model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
           content: `Synthesize a cohesive overview of these research papers (max 100 words). Focus on common themes, key findings, and broader implications. Don't list papers individually.
@@ -237,11 +239,12 @@ router.post('/api/generate-report', authenticateToken, (async (req: Request, res
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'http://localhost:5173',
+          'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
           'Content-Type': 'application/json',
+          'X-Title': 'Resego AI'
         },
         body: JSON.stringify({
-          model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+          model: 'qwen/qwen-vl-plus:free',
           messages: [{
             role: 'user',
             content: `Analyze this research paper and provide the following details in a structured format:
@@ -371,8 +374,9 @@ ${paperAnalyses.map(({ paper, analysis }) =>
     try {
       const headers: HeadersInit = {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.CORS_ORIGIN || 'http://localhost:5173',
-        'Content-Type': 'application/json'
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+        'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
       };
 
       if (process.env.OPENROUTER_ORG_ID) {
@@ -383,7 +387,7 @@ ${paperAnalyses.map(({ paper, analysis }) =>
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+          model: 'qwen/qwen-vl-plus:free',
           messages: [{
             role: 'user',
             content: reportPrompt
@@ -466,11 +470,12 @@ router.post('/api/suggest-prompt', authenticateUser, (async (req: Request, res: 
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'http://localhost:5173',
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
         'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
       },
       body: JSON.stringify({
-        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+        model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
           content: `As a research assistant, analyze this query and suggest improvements:
@@ -541,11 +546,12 @@ async function getResearchTags(query: string): Promise<string[]> {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'http://localhost:5173',
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
         'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
       },
       body: JSON.stringify({
-        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+        model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
           content: `Generate 3-4 relevant research type tags for this query: "${query}"
@@ -577,22 +583,19 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.CORS_ORIGIN || 'http://localhost:5173',
+        'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
         'Content-Type': 'application/json',
+        'X-Title': 'Resego AI'
       },
       body: JSON.stringify({
-        model: 'moonshotai/moonlight-16b-a3b-instruct:free',
+        model: 'qwen/qwen-vl-plus:free',
         messages: [{
           role: 'user',
-          content: `Give 3 one-line bullet points (max 10 words each):
-          • What: Main goal?
-          • How: Key method?
-          • Result: Key finding?
-
-          Abstract: ${abstract}`
+          content: `Analyze this research paper abstract and provide three key points:
+          ${abstract.substring(0, 1500)}`
         }],
         temperature: 0.3,
-        max_tokens: 100
+        max_tokens: 150
       }),
     });
 
