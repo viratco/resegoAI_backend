@@ -572,93 +572,79 @@ async function getResearchTags(query: string): Promise<string[]> {
 
 router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: Response): Promise<void> => {
   try {
-    // 1. Log environment check
-    console.log('Environment check:', {
-      hasApiKey: !!process.env.OPENROUTER_API_KEY,
-      keyPrefix: process.env.OPENROUTER_API_KEY?.substring(0, 6),
-      keyLength: process.env.OPENROUTER_API_KEY?.length
-    });
-
-    // 2. Get API key with explicit error
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenRouter API key not found in environment');
-    }
-    if (!apiKey.startsWith('sk-or-')) {
-      throw new Error('Invalid OpenRouter API key format');
-    }
-
     const { abstract } = req.body;
     if (!abstract) {
       res.status(400).json({ error: 'Abstract is required' });
       return;
     }
 
-    // 3. Create headers with explicit API key
-    const headers = {
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
-      'Content-Type': 'application/json',
-      'X-Title': 'Resego AI'
-    };
+    // Add timeout to fetch request
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    // 4. Log request details (safely)
-    console.log('Making OpenRouter request:', {
-      headers: {
-        ...headers,
-        'Authorization': `Bearer ${apiKey.substring(0, 10)}...`
-      },
-      abstractLength: abstract.length
-    });
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://resego-ai-frontend-3.vercel.app',
+          'Content-Type': 'application/json',
+          'X-Title': 'Resego AI'
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen-vl-plus:free',
+          messages: [{
+            role: 'user',
+            content: `Summarize this abstract in 3 key points:\n${abstract.substring(0, 1000)}`
+          }],
+          temperature: 0.1,
+          max_tokens: 150
+        }),
+        signal: controller.signal
+      });
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: 'qwen/qwen-vl-plus:free',
-        messages: [{
-          role: 'user',
-          content: `Summarize this abstract in 3 key points:\n${abstract.substring(0, 1000)}`
-        }],
-        temperature: 0.1,
-        max_tokens: 150
-      })
-    });
+      clearTimeout(timeout);
 
-    const data = await response.json();
-    
-    // 5. Log response details
-    console.log('OpenRouter response:', {
-      status: response.status,
-      hasError: !!data.error,
-      hasChoices: !!data.choices,
-      responseType: typeof data
-    });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+      }
 
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || `OpenRouter API error: ${response.statusText}`);
+      const data = await response.json();
+      
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error('No content in AI response');
+      }
+
+      res.json({
+        summary: data.choices[0].message.content,
+        status: 'success'
+      });
+
+    } catch (fetchError) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw fetchError;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    if (!data.choices?.[0]?.message?.content) {
-      throw new Error('No content in AI response');
-    }
-
-    res.json({
-      summary: data.choices[0].message.content,
-      status: 'success'
-    });
 
   } catch (error) {
-    console.error('Error in analyze-paper:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      type: error instanceof Error ? error.constructor.name : typeof error,
-      time: new Date().toISOString()
-    });
-
-    res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to analyze paper',
-      timestamp: new Date().toISOString()
-    });
+    console.error('Error in analyze-paper:', error);
+    
+    // Send appropriate error response based on error type
+    if (error.message.includes('timed out')) {
+      res.status(504).json({ 
+        error: 'Request timed out',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to analyze paper',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 }) as RequestHandler);
 
