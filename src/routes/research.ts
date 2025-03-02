@@ -21,48 +21,35 @@ const generateReportHandler: RequestHandler = async (req, res) => {
       return;
     }
 
-    // Log authentication info
-    const user = (req as any).user;
-    console.log('User info:', user);
-
-    if (!user) {
-      console.log('Error: No user found in request');
-      res.status(401).json({ error: 'User not authenticated' });
-      return;
-    }
-
-    // Generate mock report
-    console.log('Generating report for query:', query);
+    // Generate mock report with safe defaults
     const mockReport = {
-      report: `# Research Report: ${query}\n\nThis is a sample report.`,
+      report: `# Research Report: ${query}\n\n## Introduction\nThis is a research report about ${query}.\n\n## Key Findings\n- Finding 1\n- Finding 2\n\n## Conclusion\nThis concludes the research report.`,
       papers: [
         {
           paper: {
-            title: "Sample Paper",
-            authors: ["John Doe"],
-            link: "https://example.com",
-            abstract: "Sample abstract"
+            title: "Example Research Paper",
+            authors: ["John Doe", "Jane Smith"],
+            link: "https://example.com/paper1",
+            abstract: "This is a sample abstract for the research paper."
           },
-          analysis: "Sample analysis of the paper."
+          analysis: "This paper provides valuable insights into the research topic."
         }
       ],
-      savedReport: true
+      savedReport: {
+        id: 1,
+        title: query,
+        content: "Sample report content"
+      }
     };
 
-    console.log('Report generated successfully');
+    console.log('Sending response:', mockReport);
     res.json(mockReport);
     return;
 
   } catch (error) {
-    console.error('Error in generate report:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      time: new Date().toISOString()
-    });
-
+    console.error('Error in generate report:', error);
     res.status(500).json({ 
-      error: 'Failed to generate report',
-      details: error instanceof Error ? error.message : 'Unknown server error'
+      error: error instanceof Error ? error.message : 'Failed to generate report'
     });
     return;
   }
