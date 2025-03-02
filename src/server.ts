@@ -580,7 +580,7 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
 
     // Add timeout to fetch request
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -600,7 +600,7 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
           temperature: 0.1,
           max_tokens: 150
         }),
-        signal: controller.signal
+        signal: controller.signal as any,
       });
 
       clearTimeout(timeout);
@@ -622,7 +622,7 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
       });
 
     } catch (fetchError) {
-      if (fetchError.name === 'AbortError') {
+      if ((fetchError as Error).name === 'AbortError') {
         throw new Error('Request timed out after 30 seconds');
       }
       throw fetchError;
@@ -634,7 +634,7 @@ router.post('/api/analyze-paper', authenticateToken, (async (req: Request, res: 
     console.error('Error in analyze-paper:', error);
     
     // Send appropriate error response based on error type
-    if (error.message.includes('timed out')) {
+    if ((error as Error).message.includes('timed out')) {
       res.status(504).json({ 
         error: 'Request timed out',
         timestamp: new Date().toISOString()
